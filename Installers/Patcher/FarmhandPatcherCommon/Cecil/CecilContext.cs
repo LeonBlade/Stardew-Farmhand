@@ -1,56 +1,124 @@
-using Mono.Cecil.Mdb;
 namespace Farmhand.Installers.Patcher.Cecil
 {
     using System;
     using System.Collections.Generic;
+    using System.ComponentModel.Composition;
     using System.IO;
     using System.Linq;
     using System.Reflection;
 
+    using Farmhand.Installers.Patcher.Injection;
+
     using Mono.Cecil;
     using Mono.Cecil.Cil;
+    using Mono.Cecil.Mdb;
     using Mono.Cecil.Pdb;
-	using Mono.Cecil.Mdb;
     using Mono.Collections.Generic;
 
     /// <summary>
     ///     A utility class which helps with injecting via Cecil.
     /// </summary>
-    public class CecilContext
+    [Export(typeof(IInjectionContext))]
+    [PartCreationPolicy(CreationPolicy.Shared)]
+    public class CecilContext : IInjectionContext
     {
+        internal AssemblyDefinition AssemblyDefinition { get; set; }
+
+        #region IInjectionContext Members
+
         /// <summary>
-        ///     Initializes a new instance of the <see cref="CecilContext" /> class.
+        ///     Gets the loaded assemblies.
         /// </summary>
-        /// <param name="assembly">
-        ///     The assembly to load.
+        public IEnumerable<Assembly> LoadedAssemblies { get; } = new List<Assembly>();
+
+        /// <summary>
+        ///     Loads an assembly.
+        /// </summary>
+        /// <param name="file">
+        ///     The path of the assembly to load.
         /// </param>
-        /// <param name="loadPdb">
-        ///     Whether we should also load PDBs
-        /// </param>
-        public CecilContext(string assembly, bool loadPdb = false)
+        public void LoadAssembly(string file)
         {
-			var mono = Type.GetType("Mono.Runtime") != null;
-			ISymbolReaderProvider readerProvider;
-			if (mono) readerProvider = new MdbReaderProvider(); else readerProvider = new PdbReaderProvider();
+            ((List<Assembly>)this.LoadedAssemblies).Add(Assembly.LoadFrom(file));
+        }
 
-
-			var pdbPath = Path.GetDirectoryName(assembly) + Path.GetFileName(assembly) + $".{(mono?"m":"p")}db";
-            if (loadPdb && File.Exists(pdbPath))
+        /// <summary>
+        ///     Sets the primary assembly.
+        /// </summary>
+        /// <param name="file">
+        ///     The path of the assembly.
+        /// </param>
+        /// <param name="loadDebugInformation">
+        ///     Whether debug symbols should also be loaded.
+        /// </param>
+        public void SetPrimaryAssembly(string file, bool loadDebugInformation)
+        {
+            var mono = Type.GetType("Mono.Runtime") != null;
+            ISymbolReaderProvider readerProvider;
+            if (mono)
             {
-                var readerParameters = new ReaderParameters
-                                           {
-                                               SymbolReaderProvider = readerProvider,
-                                               ReadSymbols = true
-                                           };
-                this.AssemblyDefinition = AssemblyDefinition.ReadAssembly(assembly, readerParameters);
+                readerProvider = new MdbReaderProvider();
             }
             else
             {
-                this.AssemblyDefinition = AssemblyDefinition.ReadAssembly(assembly);
+                readerProvider = new PdbReaderProvider();
+            }
+
+            var pdbPath = Path.GetDirectoryName(file) + Path.GetFileName(file) + $".{(mono ? "m" : "p")}db";
+            if (loadDebugInformation && File.Exists(pdbPath))
+            {
+                var readerParameters = new ReaderParameters
+                                       {
+                                           SymbolReaderProvider = readerProvider,
+                                           ReadSymbols = true
+                                       };
+                this.AssemblyDefinition = AssemblyDefinition.ReadAssembly(file, readerParameters);
+            }
+            else
+            {
+                this.AssemblyDefinition = AssemblyDefinition.ReadAssembly(file);
             }
         }
 
-        private AssemblyDefinition AssemblyDefinition { get; }
+        /// <summary>
+        ///     Writes the modified assembly to disk.
+        /// </summary>
+        /// <param name="file">
+        ///     The output file.
+        /// </param>
+        /// <param name="writePdb">
+        ///     Whether an updated PDB should also be written.
+        /// </param>
+        public void WriteAssembly(string file, bool writePdb = false)
+        {
+            var mono = Type.GetType("Mono.Runtime") != null;
+            ISymbolWriterProvider writerProvider;
+            if (mono)
+            {
+                writerProvider = new MdbWriterProvider();
+            }
+            else
+            {
+                writerProvider = new PdbWriterProvider();
+            }
+
+            if (writePdb)
+            {
+                var writerParameters = new WriterParameters
+                {
+                    SymbolWriterProvider = writerProvider,
+                    WriteSymbols = true
+                };
+
+                this.AssemblyDefinition.Write(file, writerParameters);
+            }
+            else
+            {
+                this.AssemblyDefinition.Write(file);
+            }
+        }
+
+        #endregion
 
         /// <summary>
         ///     Gets the IL Processor for a specific method.
@@ -405,36 +473,6 @@ namespace Farmhand.Installers.Patcher.Cecil
             }
 
             return reference;
-        }
-
-        /// <summary>
-        ///     Writes the modified assembly to disk.
-        /// </summary>
-        /// <param name="file">
-        ///     The output file.
-        /// </param>
-        /// <param name="writePdb">
-        ///     Whether an updated PDB should also be written.
-        /// </param>
-        public void WriteAssembly(string file, bool writePdb = false)
-        {
-			var mono = Type.GetType("Mono.Runtime") != null;
-			ISymbolWriterProvider writerProvider;
-			if (mono) writerProvider = new MdbWriterProvider(); else writerProvider = new PdbWriterProvider();
-
-            if (writePdb)
-            {
-                var writerParameters = new WriterParameters
-                                           {
-                                               SymbolWriterProvider = writerProvider,
-                                               WriteSymbols = true
-                                           };
-                this.AssemblyDefinition.Write(file, writerParameters);
-            }
-            else
-            {
-                this.AssemblyDefinition.Write(file);
-            }
         }
 
         /// <summary>

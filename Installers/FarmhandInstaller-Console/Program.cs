@@ -5,6 +5,8 @@
     using System.Linq;
     using System.Reflection;
 
+    using Farmhand.Installers.Patcher;
+
     internal class Program
     {
         #region Pass enum
@@ -35,19 +37,33 @@
                     "Required argument (path) was missing. This should be the final argument "
                     + "in the command, and point to the platform staging folder for pass1, or to the output exe for pass2.");
             }
-
+            
+            var noObsolete = args.Any(a => a.Equals("-noobsolete"));
 
             if (args.Any(a => a.Equals("-pass1")))
             {
                 path = Path.Combine(path, path.EndsWith("Windows") ? "Stardew Valley.exe" : "StardewValley.exe");
                 patcher = CreatePatcher(Pass.PassOne);
-                patcher.Options.DisableGrm = grmDisabled;
+
+                PatcherOptions.DisableGrm = grmDisabled;
+                PatcherOptions.NoObsolete = noObsolete;
+                if (noObsolete)
+                {
+                    PatcherOptions.OutputOverride = PatcherConstants.PassOneFarmhandExeNoObsolete;
+                }
+
                 patcher.PatchStardew(path);
             }
             else if (args.Any(a => a.Equals("-pass2")))
             {
                 patcher = CreatePatcher(Pass.PassTwo);
-                patcher.Options.DisableGrm = grmDisabled;
+                PatcherOptions.DisableGrm = grmDisabled;
+                PatcherOptions.NoObsolete = noObsolete;
+                if (noObsolete)
+                {
+                    PatcherOptions.OutputOverride = "Stardew Farmhand No-Obsolete.exe";
+                }
+
                 patcher.PatchStardew(path);
             }
             else
