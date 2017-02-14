@@ -19,9 +19,9 @@
         /// </summary>
         public static event EventHandler AfterBundleConstructed = delegate { };
 
-#if WINDOWS
+//#if WINDOWS
         [Hook(HookType.Exit, "StardewValley.Menus.IClickableMenu", "initialize")]
-#endif
+//#endif
         internal static void OnAfterIClickableMenuInitialized(
             [ThisBind] object @this,
             [InputBind(typeof(int), "x")] int x,
@@ -33,9 +33,9 @@
             EventCommon.SafeInvoke(AfterIClickableMenuInitialized, null);
         }
 
-#if WINDOWS
+//#if WINDOWS
         [Hook(HookType.Exit, "StardewValley.Menus.Bundle", ".ctor")]
-#endif
+//#endif
         internal static void OnAfterBundleConstructed([ThisBind] object @this)
         {
             EventCommon.SafeInvoke(AfterBundleConstructed, @this);

@@ -26,7 +26,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine("FATAL EXCEPTION: " + ex.InnerException?.Message);
+                Console.WriteLine("FATAL EXCEPTION: " + ex);
 
                 return -1;
             }

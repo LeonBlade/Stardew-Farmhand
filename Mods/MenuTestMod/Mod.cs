@@ -35,6 +35,10 @@
         {
             GameEvents.AfterUpdateTick += GameEvents_UpdateTick;
             ControlEvents.KeyReleased += ControlEvents_OnKeyReleased;
+			UiEvents.AfterIClickableMenuInitialized += (sender, e) =>
+			{
+				Console.WriteLine("OH BOY");
+			};
         }
 
         private static void ControlEvents_OnKeyReleased(object sender, Farmhand.Events.Arguments.ControlEvents.KeyPressedEventArgs e)
